@@ -2,7 +2,7 @@
 
 Demo Fable components built using the Model -> View -> Update approach with Fable Elmish
 
-These are simple stateless controls for use with Fable Elmish that use bootstrap 4 styling
+These are simple controls for use with Fable Elmish that use bootstrap 4 styling
 
 Published under [MIT licence:](https://opensource.org/licenses/MIT)
 
