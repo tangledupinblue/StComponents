@@ -4,9 +4,11 @@ Demo Fable components built using the Model -> View -> Update approach with Fabl
 
 These are simple controls for use with Fable Elmish that use bootstrap 4 styling
 
-Published under [MIT licence:](https://opensource.org/licenses/MIT)
+##[Live Demo](https://tangledupinblue.github.io/StComponents/public)
 
-There are likely to be breaking changes at the moment and documentation is limited due to some poor name choices as the beginning. You are welcome to copy / reference etc. If you want to use this library in actual applications please let me know so we can start to limit the breaking changes.
+Published under MIT licence
+
+There are likely to be breaking changes at the moment due to some poor name choices as the beginning and documentation is limited. You are welcome to copy / reference etc. If you want to use this library in actual applications please let me know so we can start to limit the breaking changes.
 
 Brief descriptions on the components below. Example usage can be found in the example app and in ComponentDemo.fs
 

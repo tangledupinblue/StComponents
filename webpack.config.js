@@ -4,13 +4,21 @@
 
 var path = require("path");
 
+// If we're running the webpack-dev-server, assume we're in development mode
+var isProduction = !process.argv.find(v => v.indexOf('webpack-dev-server') !== -1);
+console.log("Bundling for " + (isProduction ? "production" : "development") + "...");
+
+
+
+
 module.exports = {
-    mode: "development",
+    mode: isProduction ? "production" : "development",
     entry: "./src/StComponents.fsproj",
     output: {
         path: path.join(__dirname, "./public"),
         filename: "bundle.js",
     },
+    devtool: isProduction ? "source-map" : "eval-source-map",
     devServer: {
         contentBase: "./public",
         port: 8081,

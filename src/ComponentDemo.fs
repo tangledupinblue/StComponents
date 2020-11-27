@@ -111,8 +111,14 @@ let componentTestForm = {
     OnRefresh= Some
         (fun _ formHolder ->
             let name= FormHolder.valueAsString formHolder "EnterName"
-            FieldHolder.create "NameMessage" (Message (sprintf "Hello %s" name) )
-                |> Components.FormHolders.Update.replaceField formHolder 
+            let html= FormHolder.valueAsString formHolder "HtmlText"
+            [   FieldHolder.create "NameMessage" (Message (sprintf "Hello %s" name) )
+                FieldHolder.create "HtmlPreview" (HtmlPreview html)
+            ]
+                |> List.fold (
+                    fun formHolder next -> 
+                        Components.FormHolders.Update.replaceField formHolder next
+                )   formHolder   
         )
 }
 
