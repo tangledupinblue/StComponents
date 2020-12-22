@@ -56,7 +56,7 @@ module UrlUtils=
     let openNewTab (str:string) : unit = jsNative
 
     let readUrl callback id url () = promise {        
-        printfn "fetching from %s for %A" url callback
+        //printfn "fetching from %s for %A" url callback
         let! resp= fetch url []      
         let! txt= resp.text()        
         VarStore.setStringVar id txt
@@ -101,7 +101,7 @@ module this=
         ]
 
     let helpContentNode id helpContent ocallback ()=
-        printfn "helpContentNode for %s: %A" id helpContent
+        //printfn "helpContentNode for %s: %A" id helpContent
         match helpContent with
             | HelpText (_,s) ->
                 div [] [ str s ]
@@ -124,7 +124,7 @@ module this=
 
     //the callback is used after loading from html
     let modalDialog id helpTitle helpContent (ocallback:(unit -> unit) option)=
-        printfn "calc dialog for %s" id
+        //printfn "calc dialog for %s" id
         // let content ()= 
         div [ Id id ; Class "modal" ; TabIndex -1 ; Role "dialog" ] [
             div [ Class "modal-dialog" ; Role "document" ] [
@@ -149,7 +149,7 @@ module this=
 
     //let hostInside containerfn id=
     let updateHelpContentNodeCallback id helpContent ()=
-        printfn "help callback hit for %s" id
+        //printfn "help callback hit for %s" id
         helpContentNode id helpContent None ()
             |> Fable.React.Helpers.mountById (idBody id) 
 

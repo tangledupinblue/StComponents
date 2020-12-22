@@ -3,6 +3,7 @@ module Experiments
 
 open System
 open Fable.Core
+open Elmish
 open Elmish.React
 open Fable.React
 open Fable.React.Props
@@ -36,13 +37,23 @@ type DashboardComponent =
     | Scale
 
 type Msg =
+    | Loading
     | ComponentClicked of DashboardComponent
+    | TimerAction of Timer.Msg
+    | StartTimer
+    | StopTimer
 
 
 type Model = {
     Components: DashboardComponent list
+    Timer: Timer.Model
+    LastTick: DateTime
 }
-    with static member empty = { Components= [] }
+    with static member empty = { 
+                            Components= []
+                            Timer= Timer.Model.default_ 
+                            LastTick= new DateTime(2000,1,1) 
+                        }
 
 
 // let drawComponent comp dispatch = 
@@ -68,7 +79,22 @@ module Status =
         ]
 
 let update (msg:Msg) (model:Model) =
-    model
+    match msg with
+        | Loading ->
+            model, Cmd.none
+        | StartTimer ->
+            model, Timer.SetOn |> TimerAction |> Cmd.ofMsg
+        | StopTimer ->
+            model, Timer.SetOff false |> TimerAction |> Cmd.ofMsg
+        | TimerAction tmsg ->
+            let mdl,cmd= Timer.update tmsg model.Timer
+            { model with    Timer= mdl
+                            LastTick= match tmsg with
+                                        | Timer.Tick dt -> dt
+                                        | _ -> model.LastTick                            
+                }, cmd |> Cmd.map TimerAction
+        | _ ->
+            model, Cmd.none
 
 
 let demoControls = [
@@ -78,6 +104,18 @@ let demoControls = [
 let view model dispatch = 
     let inGrid re = div [ Class "col-3 border border-warning rounded" ] [ re ]
     div [ Class "container" ] [
+        div [] [ 
+            h2 [] [ str <| model.LastTick.ToString("HH:mm:ss") ]
+            div [] [ 
+                button [    Class "btn btn-sm btn-outline-success" 
+                            OnClick (fun _ -> StartTimer |> dispatch )
+                ] [ str "Start Timer" ]
+                button [    Class "btn btn-sm btn-outline-danger" 
+                            OnClick (fun _ -> StopTimer |> dispatch )
+                ] [ str "Stop Timer" ]
+            ]
+            Timer.view model.Timer (TimerAction >> dispatch)
+        ]
         Helpers.View.helpButton (Helpers.HelpText ("Help Button","Help Text do this and that and help with all this stuff") )
         div [ Style [ Height "30px" ] ] []
         Helpers.View.helpIcon (Helpers.HelpText ("Help Icon","Help Text do this and that and help with all this stuff launched from Icon") )

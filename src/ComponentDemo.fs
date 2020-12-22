@@ -164,6 +164,9 @@ let hiddenCols (str:string,lst:string list) =
 let (|StrEq|) str1 str2 = str1 = str2
 
 let update (msg:Msg) (model:Model) =
+    let msgStr = msg |> string
+    let msgOnly = msgStr |> (fun s -> s.Split([| '{' |]) ) |> Array.tryHead |> Option.defaultValue "Cant Read"
+    printfn "%s %s" (DateTime.Now.ToString("HH:mm:ss")) msgOnly    
     match msg with
     | Start -> model, Cmd.none
     | ChangePage vs -> 
@@ -201,8 +204,8 @@ let update (msg:Msg) (model:Model) =
         let mdl,_ = Components.Report.update rmsg model.ReportModel model.GridData
         { model with ReportModel= mdl }, Cmd.none
     | ExperimentAction dmsg -> 
-        let mdl = Experiments.update dmsg model.Experiments
-        { model with Experiments= mdl }, Cmd.none
+        let mdl,cmd = Experiments.update dmsg model.Experiments
+        { model with Experiments= mdl }, cmd |> Cmd.map ExperimentAction
 
 let init() = 
     let appkey = Browser.WebStorage.localStorage.getItem("storageKey").ToString()
@@ -251,7 +254,7 @@ let view (model:Model) dispatch =
 //Program.mkSimple init update view
 Program.mkProgram init update view
     |> Program.withReactBatched "elmish-app"
-    |> Program.withConsoleTrace
+    //|> Program.withConsoleTrace
     |> Program.run
 
 

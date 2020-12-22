@@ -36,7 +36,7 @@ type Row = {
     }    
 
 type RowComparator =
-    Empty
+    | Empty
     | LeftOnly of Row
     | RightOnly of Row
     | Same of Row*Row
@@ -272,6 +272,16 @@ module private this =
                         | Ok _ -> Error "Unknown error decoding list - no error found on failed operation"
                         | Error err -> Error <| sprintf "First Error: %s" err
                 | None -> Error "Unknown error decoding list - no errors found on all"
+
+let insertColumn colName fieldType defaultCell index qd = 
+    let insert i a lst = lst |> List.splitAt i |> (fun (start,finish) -> start @ [ a ] @ finish )
+    {   Headers= qd.Headers |> insert index colName
+        FieldTypes= qd.FieldTypes |> insert index fieldType
+        Rows= qd.Rows
+                |> List.map (
+                    fun r -> { r with Cells= r.Cells |> insert index defaultCell }
+                )
+    }
 
 let compareSets (left:QueryData) (right:QueryData) =
     let max l r = if l > r then l else r

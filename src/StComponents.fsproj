@@ -3,6 +3,7 @@
     <TargetFramework>netstandard2.1</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Timer.fs" />
     <Compile Include="Helpers.fs" />
     <Compile Include="QueryData.fs" />
     <Compile Include="Experiments.fs" />

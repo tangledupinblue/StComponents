@@ -769,7 +769,7 @@ module Input =
         ]
 
 
-    let fieldBitStringInput (fh:FieldHolder) (bitString:string*string list) (styles:string) (validation:ValidationMessages) (trigger:FieldHolder -> unit) =
+    let fieldBitStringInput (fh:FieldHolder) (bitString:string*string list) (styles:string) addins (validation:ValidationMessages) (trigger:FieldHolder -> unit) =
         let isChecked index = match fst bitString |> (fun s -> s.ToCharArray() ) |> Array.tryItem index with
                                             | Some c -> c = '1'
                                             | None -> false 
@@ -798,6 +798,7 @@ module Input =
             ]
         div [ Class <| addStyle styles "form-group" ] [
             label [] [ str fh.DisplayName ]
+            div [] addins
             div [] (                
                 // (snd bitString) |> List.mapi (fun i x -> li [ Class "list-group-item" ] [ switch i x ] )
                 (snd bitString) |> List.mapi (fun i x -> switch i x )                
@@ -1244,7 +1245,7 @@ let getInput (field:FieldHolder) colspan (validation:ValidationMessages) dispatc
         | Float flt -> Input.fieldFloatInput field colspan validation (ValueChanged >> dispatch)
         | Int i -> Input.fieldIntInput field colspan validation (ValueChanged >> dispatch)
         | Bool b -> Input.fieldBoolInput field colspan validation (ValueChanged >> dispatch)
-        | BitString (str,lst) -> Input.fieldBitStringInput field (str,lst) colspan validation (ValueChanged >> dispatch)
+        | BitString (str,lst) -> Input.fieldBitStringInput field (str,lst) colspan addins validation (ValueChanged >> dispatch)
         | DateString str -> Input.dateStringInput field colspan validation (ValueChanged >> dispatch)
         | DateTimeString str -> Input.dateTimeStringInput field colspan validation (ValueChanged >> dispatch)
         | TimeString str -> Input.timeStringInput field str colspan validation (ValueChanged >> dispatch)
