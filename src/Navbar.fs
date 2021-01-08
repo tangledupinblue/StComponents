@@ -108,24 +108,34 @@ let showNavbarItem (trigger: Msg -> unit) (itm:NavbarItem) =
 
 // let showNavbar (branding:string) (itms:NavbarItem list) (trigger: Msg -> unit) =
 let showNavbar (branding:string) (itms:NavbarItem list) dispatch =
-    let height = "36px"
-    div [ Class "d-block"; Style [ ZIndex 1 ] ] [
-        div [ Class "d-block fixed-top"; Style [ Height height ] ] [
-            div [ Class "nav nav-pills navbar-dark bg-dark" ] (
-                itms 
-                    |> List.map (showNavbarItem dispatch)
-                    |> List.append [
-                        a [ Class "navbar-brand"; Style [ Color "white" ] ] [ str branding ]
-                    ]
-            )
-        ]
-        div [ Style [ Height height ] ] []
-    ]
+    // div [ Class "d-block" ; Style [ Position PositionOptions.Sticky ; Top "0em" ] ] [
+    div [ Class "nav nav-pills navbar-dark bg-dark" ] (
+        itms 
+            |> List.map (showNavbarItem dispatch)
+            |> List.append [
+                a [ Class "navbar-brand"; Style [ Color "white" ] ] [ str branding ]
+            ]
+    )
+    // ]
+
+    // let height = "36px"
+    // div [ Class "d-block"; Style [ ZIndex 1 ] ] [
+    //     div [ Class "d-block fixed-top"; Style [ Height height ] ] [
+    //         div [ Class "nav nav-pills navbar-dark bg-dark" ] (
+    //             itms 
+    //                 |> List.map (showNavbarItem dispatch)
+    //                 |> List.append [
+    //                     a [ Class "navbar-brand"; Style [ Color "white" ] ] [ str branding ]
+    //                 ]
+    //         )
+    //     ]
+    //     div [ Style [ Height height ] ] []
+    // ]
 
 
 let showSubmenu (itms:NavbarItem list) dispatch =
     nav [   
-        Class "navbar navbar-default navbar-fixed-top navbar-secondary" 
+        Class "navbar navbar-default navbar-secondary" 
         Role "navigation" 
     ] [
         div [ Class "container" ] [
@@ -166,6 +176,14 @@ module View =
         showNavbar model.Branding model.Items dispatch
     let secondaryNavBar (model:Model) dispatch = 
         showSubmenu model.Items dispatch
+
+    // open Browser.Dom
+    // let scrollToTop () =
+    //     button [    Style [     Position PositionOptions.Sticky ; Left "0" ; Top "0" ;
+    //                             Display (if window.scrollY > window.outerHeight / 3. then DisplayOptions.Inline else DisplayOptions.None )                    
+    //                 ] 
+    //                 OnClick (fun _ -> Browser.Dom.window.scrollTo(0.,0.) )
+    //     ] [ str "Up" ]
 
 type Model with
     static member fromStrings branding items = { Branding= branding; Items= navbarItems items "" ; LastSelection= None } 

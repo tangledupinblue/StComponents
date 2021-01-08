@@ -55,6 +55,7 @@ type QueryData = {
     }
     with 
         static member empty = { Headers= []; FieldTypes= []; Rows= [] }
+        static member isEmpty qd = qd.Headers |> List.length = 0
 
 
 type FieldHeader= {
@@ -121,6 +122,12 @@ let cellFromString (value:string) =
 
 let cellFromInt (value:int) = 
     { MaybeFloat= float value |> Some ; MaybeString= None }
+
+let cellFromBool (value:bool) =
+    { MaybeFloat= None ; MaybeString= (if value then "true" else "false") |> Some }
+
+let cellFromGuid (value:Guid) = 
+    { MaybeFloat = None; MaybeString = Some (string value) }
 
 let cellFromFieldType fieldType (value:string) =
     match fieldType with

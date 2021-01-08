@@ -137,7 +137,7 @@ let gridSettingsForm (setts:GridDemoSettings) (cols:string list) = {
 }
 
 let dummyData = {
-        Headers = [ "FirstName"; "LastName"; "Hidden" ; "Age" ; "Last Shower" ]
+        Headers = [ "FirstName"; "LastName"; "Hidden" ; "Age" ; "Time Span" ]
         FieldTypes  = [ Stringy; Stringy; Stringy ; Inty ; Duration ] 
         Rows = [ 
             { Key= "1"; Cells= [ cellFromString "bob"; cellFromString "jones";   cellFromString "HIDE" ; cellFromFloat 24.      ; cellFromFloat <| 71.  ] }
@@ -149,6 +149,25 @@ let dummyData = {
             { Key= "7"; Cells= [ cellFromString "baz"; cellFromString "ray";     cellFromString "HIDE" ; cellFromFloat 25.      ; cellFromFloat <| 711.  ] }
             { Key= "8"; Cells= [ cellFromString "baz"; cellFromString "crocket"; cellFromString "HIDE" ; cellFromFloat 30.      ; cellFromFloat <| 1.  ] }
             { Key= "9"; Cells= [ cellFromString "jim"; cellFromString "crocket"; cellFromString "HIDE" ; cellFromFloat 40.      ; cellFromFloat <| 61.  ] }
+            { Key= "10"; Cells= [ cellFromString "bob"; cellFromString "jones";   cellFromString "HIDE" ; cellFromFloat 24.      ; cellFromFloat <| 71.  ] }
+            { Key= "11"; Cells= [ cellFromString "baz"; cellFromString "james";   cellFromString "HIDE" ; cellFromFloat 25.      ; cellFromFloat <| 171.  ] }
+            { Key= "12"; Cells= [ cellFromString "baz"; cellFromString "jones";   cellFromString "HIDE" ; cellFromFloat 30.      ; cellFromFloat <| 271.  ] }
+            { Key= "13"; Cells= [ cellFromString "jim"; cellFromString "jones";   cellFromString "HIDE" ; cellFromFloat 40.      ; cellFromFloat <| 71.  ] }
+            { Key= "14"; Cells= [ cellFromString "jim"; cellFromString "bob";     cellFromString "HIDE" ; cellFromFloat 50.      ; cellFromFloat <| 7.  ] }
+            { Key= "15"; Cells= [ cellFromString "billy"; cellFromString "ray";   cellFromString "HIDE" ; cellFromFloat 60.      ; cellFromFloat <| 721.  ] }
+            { Key= "16"; Cells= [ cellFromString "baz"; cellFromString "ray";     cellFromString "HIDE" ; cellFromFloat 25.      ; cellFromFloat <| 711.  ] }
+            { Key= "17"; Cells= [ cellFromString "baz"; cellFromString "crocket"; cellFromString "HIDE" ; cellFromFloat 30.      ; cellFromFloat <| 1.  ] }
+            { Key= "18"; Cells= [ cellFromString "jim"; cellFromString "crocket"; cellFromString "HIDE" ; cellFromFloat 40.      ; cellFromFloat <| 61.  ] }
+            { Key= "19"; Cells= [ cellFromString "jim"; cellFromString "crocket"; cellFromString "HIDE" ; cellFromFloat 40.      ; cellFromFloat <| 61.  ] }
+            { Key= "20"; Cells= [ cellFromString "bob"; cellFromString "jones";   cellFromString "HIDE" ; cellFromFloat 24.      ; cellFromFloat <| 71.  ] }
+            { Key= "21"; Cells= [ cellFromString "baz"; cellFromString "james";   cellFromString "HIDE" ; cellFromFloat 25.      ; cellFromFloat <| 171.  ] }
+            { Key= "22"; Cells= [ cellFromString "baz"; cellFromString "jones";   cellFromString "HIDE" ; cellFromFloat 30.      ; cellFromFloat <| 271.  ] }
+            { Key= "23"; Cells= [ cellFromString "jim"; cellFromString "jones";   cellFromString "HIDE" ; cellFromFloat 40.      ; cellFromFloat <| 71.  ] }
+            { Key= "24"; Cells= [ cellFromString "jim"; cellFromString "bob";     cellFromString "HIDE" ; cellFromFloat 50.      ; cellFromFloat <| 7.  ] }
+            { Key= "25"; Cells= [ cellFromString "billy"; cellFromString "ray";   cellFromString "HIDE" ; cellFromFloat 60.      ; cellFromFloat <| 721.  ] }
+            { Key= "26"; Cells= [ cellFromString "baz"; cellFromString "ray";     cellFromString "HIDE" ; cellFromFloat 25.      ; cellFromFloat <| 711.  ] }
+            { Key= "27"; Cells= [ cellFromString "baz"; cellFromString "crocket"; cellFromString "HIDE" ; cellFromFloat 30.      ; cellFromFloat <| 1.  ] }
+            { Key= "28"; Cells= [ cellFromString "jim"; cellFromString "crocket"; cellFromString "HIDE" ; cellFromFloat 40.      ; cellFromFloat <| 61.  ] }
         ]
     }
 
@@ -209,7 +228,7 @@ let update (msg:Msg) (model:Model) =
 
 let init() = 
     let appkey = Browser.WebStorage.localStorage.getItem("storageKey").ToString()
-    update Start {  ViewState= HtmlDashboard //Components //Report
+    update Start {  ViewState= ViewState.Grid //Components //Report
                     Navbar= [ Const.GRID ; Const.REPORT ; Const.COMPONENTS ; Const.DASHBOARD ]
                                 |> List.map NavbarItem.fromString
                                 |> StNavbar.fromItems "StComponents"                               
@@ -225,29 +244,31 @@ let init() =
                     }
 
 let view (model:Model) dispatch =
-    div [ Class "container-fluid" ] [ 
-        Components.Navbar.View.mainNavBar model.Navbar (NavbarAction >> dispatch)
-        h2 [ Class "text-primary text-center mt-2 mb-2" ] [ str "St-Components Demo" ]
-        match model.ViewState with
-            | Grid -> 
-                div [] [
-                    Components.FormHolders.View.form model.GridSettingsForm (GridSettingsAction >> dispatch)
-                ]
-                div [] [
-                    Components.DataGrid.view model.DataGrid model.GridData (GridAction >> dispatch)
-                ]
-            | Report -> 
-                div [] [
-                    StReport.view model.ReportModel model.GridData (ReportAction >> dispatch)
-                ]
-            | Components -> 
-                div [] [
-                    Components.FormHolders.View.form model.ComponentSettingsForm (GridSettingsAction >> dispatch)
-                ]
-            | HtmlDashboard ->
-                div [] [
-                    Experiments.view model.Experiments (ExperimentAction >> dispatch)
-                ]
+    div [] [
+        div [ Class "container-fluid" ] [ 
+            Components.Navbar.View.mainNavBar model.Navbar (NavbarAction >> dispatch)
+            h2 [ Class "text-primary text-center mt-2 mb-2" ] [ str "St-Components Demo" ]
+            match model.ViewState with
+                | Grid -> 
+                    div [] [
+                        Components.FormHolders.View.form model.GridSettingsForm (GridSettingsAction >> dispatch)
+                    ]
+                    div [ Class "mt-5" ] [
+                        Components.DataGrid.view model.DataGrid model.GridData (GridAction >> dispatch)
+                    ]
+                | Report -> 
+                    div [] [
+                        StReport.view model.ReportModel model.GridData (ReportAction >> dispatch)
+                    ]
+                | Components -> 
+                    div [] [
+                        Components.FormHolders.View.form model.ComponentSettingsForm (GridSettingsAction >> dispatch)
+                    ]
+                | HtmlDashboard ->
+                    div [] [
+                        Experiments.view model.Experiments (ExperimentAction >> dispatch)
+                    ]
+        ]
     ]
 
 // App

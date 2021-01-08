@@ -16,7 +16,7 @@ module.exports = {
     entry: "./src/StComponents.fsproj",
     output: {
         path: path.join(__dirname, "./public"),
-        filename: "bundle.js",
+        filename: "bundle.js" //isProduction ? "bundle.js" : "bundle-dev.js",
     },
     devtool: isProduction ? "source-map" : "eval-source-map",
     devServer: {
