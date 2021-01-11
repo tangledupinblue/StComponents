@@ -24,7 +24,7 @@ type GridStyleSet= {    //these are bootstrap style appendages to any layout sty
                         ActiveRow= "bg-primary text-white"
                         SelectedRow= "bg-secondary text-white"
                         TableHead= "thead-light"
-                        GroupRowHeader= "text-primary"
+                        GroupRowHeader= "bg-dark text-light"
                         Table= "table table-sm table-striped table-hover"
                         SearchBarFooter= "navbar navbar-dark bg-dark navbar-expand-sm fixed-bottom"
                     }
@@ -107,8 +107,9 @@ type Msg =
     | RowClicked of RowClickArgs //string*float    //height of the click for returning
     | RowDoubleClicked of RowClickArgs //string*float  //height of the click for returning
     | HeaderClicked of string
-    | ClearSelection
-    | SelectAll
+    | GroupOnClicked of SortableColumn
+    | ClearSelection of (string list) option
+    | SelectSomeOrAll of (string list) option
     | ClearRefresh
     | GridSingleButtonClicked of SingleButtonClickArgs //string*string    //the button id and the row key
     | GridMultiButtonClicked of MultiButtonClickArgs //string*string list   //the button id and the row keys
@@ -123,6 +124,7 @@ type GridLayout = {
     SingleRowButtons: GridButton list
     MultiRowButtons: GridButton list
     SelectedCheckBox: bool
+    GroupOnColumns: string list
     StyleSet: GridStyleSet
     BottomSpacing: Pixels
 }
@@ -134,6 +136,7 @@ type GridLayout = {
             SingleRowButtons= []
             MultiRowButtons= []
             SelectedCheckBox= false
+            GroupOnColumns= []
             StyleSet= GridStyleSet.Light
             BottomSpacing= 60
         }
@@ -188,19 +191,39 @@ type Model = {
 
 
 module private config =
-    let functionButtons (settings:Model) dispatch = 
+    let functionButtons (keys:string list) (settings:Model) dispatch = 
         let selections = 
-            if settings.Layout.Multiselect then [
+            if settings.Layout.Multiselect then (
+                ( keys |> function 
+                            | [] -> []
+                            | _ -> [
+                                button [ 
+                                    Class settings.Layout.StyleSet.SearchBarButton //"btn btn-info btn-sm mr-1"   
+                                    Type "button"                   
+                                    OnClick (fun _ ->   SelectSomeOrAll (Some keys) |> dispatch)                             
+                                ] [ str "Select Group" ]
+                                button [ 
+                                    Class settings.Layout.StyleSet.SearchBarButton //"btn btn-info btn-sm mr-1"   
+                                    Type "button"                   
+                                    OnClick (fun _ ->   ClearSelection (Some keys) |> dispatch)                             
+                                ] [ str "Clear Group" ]
+                            ]
+
+                                // |> List.singleton
+                )
+                @
+                [
                     button [ 
                         Class settings.Layout.StyleSet.SearchBarButton //"btn btn-info btn-sm mr-1"   
                         Type "button"                   
-                        OnClick (fun _ -> SelectAll |> dispatch)                             
+                        OnClick (fun _ ->   SelectSomeOrAll None |> dispatch)                             
                     ] [ str "Select All" ]
                     button [ 
                         Class settings.Layout.StyleSet.SearchBarButton //"btn btn-info btn-sm mr-1"
                         Type "button"                   
-                        OnClick (fun _ -> ClearSelection |> dispatch) ] [ str "Clear Selection" ]
+                        OnClick (fun _ -> ClearSelection None |> dispatch) ] [ str "Clear Selection" ]
                 ]
+            )
             else []
         //TODO - causes issues with react state, not looking at now
         // button [    Class  settings.Layout.StyleSet.SearchBarButton
@@ -296,6 +319,9 @@ module private this =
     let isActive (key:string) (state:GridState) = 
         key = Option.defaultValue "" state.ActiveRow
 
+    let mergeLists lstA lstB =
+        lstA @ lstB |> List.distinct
+
     let matchSelectedToStyle model isSelected isActive isSummary =
         if isActive then Class model.Layout.StyleSet.ActiveRow // "bg-primary text-white"
         else if isSelected then Class model.Layout.StyleSet.SelectedRow //"bg-secondary text-white"
@@ -324,7 +350,7 @@ module private this =
                         rows |> List.sortByDescending (fun x -> x.Cells.[i])
             | _ -> rows
 
-    let showTableHeaders (grid:Model) (data:QueryData) columns dispatch= 
+    let showTableHeaders (sticky:bool) (grid:Model) (data:QueryData) columns dispatch= 
         let addSelectedCol lst = 
             if grid.Layout.SelectedCheckBox then List.append [ "" ] lst
             else lst
@@ -334,20 +360,50 @@ module private this =
                 |> withColumnsToShow columns
                 |> addSelectedCol
                 |> List.map (fun x -> 
-                        th [    Style [ Position PositionOptions.Sticky ; Top 0 ; Cursor "pointer" ]                                    
-                                OnClick (fun ev -> x |> string |> HeaderClicked |> dispatch )
-                        ] (     [ str (Utils.splitCamelCase x) ]
+                        let canGroup= grid.Layout.GroupOnColumns |> List.exists (fun gc -> gc = x)
+                        let isGrouped= grid.State.GroupColumn.ColumnName = x
+                        th (    
+                                [ Style ( (if sticky then [ Position PositionOptions.Sticky ; Top 0] else []) @ [  Cursor "pointer" ] ) ]   
                                 @
-                                (   if grid.State.SortColumn.ColumnName = x then
+                                (   if isGrouped then []
+                                    else [ OnClick (fun ev -> x |> string |> HeaderClicked |> dispatch ) ]
+                                )                        
+                        ) (     [ str (Utils.splitCamelCase x) ]
+                                @
+                                (   if (not isGrouped) && grid.State.SortColumn.ColumnName = x then
                                         match grid.State.SortColumn.SortOrder with
                                             | Asc -> "+" 
                                             | Desc -> "-" 
                                             | NoSort -> ""
 
-                                            |> (fun s -> span [ Class "badge badge-secondary text-right" ; Style [ Width "16px" ] ] [ str s ])
+                                            |> (fun s -> span [ Class "badge badge-secondary text-right mr-1" ; Style [ Width "16px" ] ] [ str s ])
                                             |> (fun e -> e :: [])
                                     else []
                                 )                            
+                                @
+                                (
+                                    match   canGroup,
+                                                isGrouped,
+                                                    grid.State.GroupColumn.SortOrder with
+                                        | true, true, Asc ->
+                                            [   span [  Class "badge badge-primary text-light mr-1" 
+                                                        OnClick (fun _ -> GroupOnClicked (SortableColumn.Desc x) |> dispatch)
+                                                ] [ str "Group -" ]
+                                            ]
+                                        | true, true, Desc ->
+                                            [   span [  Class "badge badge-primary text-light mr-1" 
+                                                        OnClick (fun _ -> GroupOnClicked (SortableColumn.Asc "") |> dispatch)
+                                                ] [ str "Ungroup" ]
+                                            ]
+                                        | true, true, _ 
+                                        | true, false, _ -> 
+                                            [   span [  Class "badge badge-info text-light mr-1" 
+                                                        OnClick (fun _ -> GroupOnClicked (SortableColumn.Asc x) |> dispatch)
+                                                ] [ str "Group" ]
+                                            ]
+                                        | _, _, _ ->
+                                            []
+                                )
                         )
                 )
             )
@@ -472,7 +528,7 @@ module private this =
                                 DefaultValue filterString;
                                 OnChange (fun ev -> ev.target?value |> string |> OnAll |> FilterChanged |> dispatch)  ]
                         ]
-                        (config.functionButtons model dispatch)                        
+                        (config.functionButtons [] model dispatch)                        
                         (if model.State.SelectedRows.Length > 1 then 
                             (   let keys = model.State.SelectedRows
                                 model.Layout.MultiRowButtons 
@@ -489,7 +545,7 @@ module private this =
             ]
         ]
 
-    let showSearchBarTableHeader model dispatch =
+    let showSearchBarTableHeader keys model dispatch =
         //TODO - have implemented filter on column functionality elsewhere - need to incorporate into this search bar
         let filterString = 
             match model.State.Filter with
@@ -505,7 +561,7 @@ module private this =
                                 DefaultValue filterString ;
                                 OnChange (fun ev -> ev.target?value |> string |> OnAll |> FilterChanged |> dispatch)  ]
                         ]
-                        (config.functionButtons model dispatch)                        
+                        (config.functionButtons keys model dispatch)                        
                         (if model.State.SelectedRows.Length > 1 then 
                             (   let keys = model.State.SelectedRows
                                 model.Layout.MultiRowButtons 
@@ -583,21 +639,31 @@ let setHiddenCols (colsToHide:string list) (settings:Model) =
 let setVisibleCols (colsToShow: string list) (settings:Model) = 
     { settings with 
         Layout = { settings.Layout with ShowOnlyColumns = colsToShow } }
- 
+
+let setGroupCols (groupCols:string list) (grid:Model) = 
+    { grid with 
+        Layout = { grid.Layout with GroupOnColumns = groupCols } }
+
+
 let setSortOrder sortableColumn (settings:Model) =
     { settings with 
         State = { settings.State with SortColumn = sortableColumn } }
 
 
     // static member setMultiSelect (multiSelect:bool) (settings:Model) =
-let setMultiSelect (multiSelect:bool) (settings:Model) =
-    { settings with 
-        Layout = { settings.Layout with Multiselect = true } }
+let setMultiSelect (multiSelect:bool) (grid:Model) =
+    { grid with 
+        Layout = { grid.Layout with Multiselect = true } }
 
     // static member setGroupByColumn (colName:string) (settings:Model) = 
-let setGroupByColumn (colName:string) (settings:Model) = 
-    { settings with
-        State = { settings.State with GroupColumn = { ColumnName= colName; SortOrder= Asc } } }
+let setGroupByColumn (colName:string) (grid:Model) = 
+    { grid with
+        State = { grid.State with GroupColumn = { ColumnName= colName; SortOrder= Asc } } }
+
+let setGroupBySortOrder (col:SortableColumn) (grid:Model) = 
+    { grid with
+        State= { grid.State with GroupColumn = col } }
+
 
     //remember scroll position and return there
     // static member setScrollRefresh (settings:Model) =        
@@ -694,17 +760,27 @@ module private grid =
                         | { SortOrder = Asc } when str = gridState.State.SortColumn.ColumnName -> { ColumnName = str; SortOrder = Desc }
                         | _ -> { ColumnName = str; SortOrder = Asc }                                       
                 { gridState with State = { gridState.State with SortColumn = sort } } |> noRefresh
-            | SelectAll -> 
+            | GroupOnClicked str ->
+                setGroupBySortOrder str gridState
+            | SelectSomeOrAll okeys -> 
                 { gridState with State = { 
                                 gridState.State with 
                                     ActiveRow = None 
-                                    SelectedRows = getVisibleRows gridState qd |> List.map (fun x -> x.Key) } 
+                                    SelectedRows = 
+                                        match okeys with 
+                                            | Some keys -> 
+                                                gridState.State.SelectedRows |> this.mergeLists keys 
+                                            | None -> getVisibleRows gridState qd |> List.map (fun x -> x.Key) } 
                 } |> noRefresh 
-            | ClearSelection -> 
+            | ClearSelection okeys -> 
                 { gridState with State = { 
                                 gridState.State with 
                                     ActiveRow = None
-                                    SelectedRows = [] } 
+                                    SelectedRows = 
+                                        match okeys with
+                                            | Some keys -> 
+                                                gridState.State.SelectedRows |> List.except keys
+                                            | None -> [] } 
                 } |> noRefresh
             | ClearRefresh -> gridState |> noRefresh
             | _ -> gridState |> noRefresh
@@ -718,7 +794,7 @@ module private grid =
         let groupBands = this.groupValsForCol data model.State.GroupColumn
         //printfn "%A" groupBands
         //let headers = this.showTableHeaders model data hideIndices dispatch
-        let headerRow = this.showTableHeaders model data columns dispatch
+        let headerRow sticky = this.showTableHeaders sticky model data columns dispatch
         // let showRows rows = this.showTableRows rows { Headers= data.Headers; FieldTypes= data.FieldTypes } model hideIndices dispatch
         let showRows rows = this.showTableRows rows model columns dispatch
         div (if model.Behaviour.RefreshOptions |> List.exists (fun x -> x = ScrollRefresh) then
@@ -729,31 +805,46 @@ module private grid =
             div [] (   
                     match groupBands with 
                         | Some gbs ->
-                            thead [ Class "thead-light" ] (
-                                headerRow
-                                ::
-                                (   if model.Layout.ShowSearchBar = SearchBarOptions.TableHeader then
-                                        [ tr [] [
-                                            th [ ColSpan 100; Style [ Position PositionOptions.Sticky ; Top "2em" ] ] [
-                                                this.showSearchBarTableHeader model dispatch
-                                            ]
-                                        ] ]
-                                    else [] 
-                                )
-                            )
-                            ::
+                            // table [ Class <| model.Layout.StyleSet.Table ] [
+                            //     thead [ Class "thead-light" ] (
+                            //         headerRow
+                            //         ::
+                            //         (   if model.Layout.ShowSearchBar = SearchBarOptions.TableHeader then
+                            //                 [ tr [] [
+                            //                     th [ ColSpan 100; Style [ Position PositionOptions.Sticky ; Top "2em" ] ] [
+                            //                         this.showSearchBarTableHeader model dispatch
+                            //                     ]
+                            //                 ] ]
+                            //             else [] 
+                            //         )
+                            //     )
+                            // ]
+                            // ::
                             ( gbs 
-                                |> List.map 
-                                    ( fun g -> 
+                                |> List.mapi
+                                    ( fun i g -> 
                                         let rowsForGroup = this.filterMatchingRows g (this.colIndex model.State.GroupColumn.ColumnName data) filteredRows
                                         if rowsForGroup.Length = 0 then text [] []
                                         else 
                                             div [] [
                                                 // h5 [ Class "text-primary" ] [ str <| cellText g ]
-                                                h5 [ Class model.Layout.StyleSet.GroupRowHeader ] [ str <| cellText g ]
+                                                div [ Class model.Layout.StyleSet.GroupRowHeader ] [ 
+                                                    h5 [ Class "m-1 p-1" ] [ str <| cellText g ]
+                                                ]
                                                 // table [ Class <| "table table-sm table-striped table-hover" ] [
                                                 table [ Class <| model.Layout.StyleSet.Table ] [
-                                                    thead [ Class "thead-light" ] [ headerRow ]
+                                                    thead [ Class "thead-light" ] (
+                                                        headerRow true
+                                                        ::
+                                                        (   if model.Layout.ShowSearchBar = SearchBarOptions.TableHeader then
+                                                                [ tr [] [
+                                                                    th [ ColSpan 100; Style [ Position PositionOptions.Sticky ; Top "2em" ] ] [
+                                                                        this.showSearchBarTableHeader (rowsForGroup |> List.map (fun r -> r.Key)) model dispatch
+                                                                    ]
+                                                                ] ]
+                                                            else [] 
+                                                        )
+                                                    )
                                                     tbody [] (
                                                         showRows rowsForGroup
                                                     )
@@ -766,12 +857,12 @@ module private grid =
                                 // table [ Class <| "table table-sm table-striped table-hover" ] [
                                 table [ Class <| model.Layout.StyleSet.Table ] [
                                     thead [ Class "thead-light" ] (
-                                        headerRow
+                                        headerRow true
                                         ::
                                         (   if model.Layout.ShowSearchBar = SearchBarOptions.TableHeader then
                                                 [ tr [] [
                                                     th [ ColSpan 100; Style [ Position PositionOptions.Sticky ; Top "2em" ] ] [
-                                                        this.showSearchBarTableHeader model dispatch
+                                                        this.showSearchBarTableHeader [] model dispatch
                                                     ]
                                                 ] ]
                                             else [] 
@@ -786,7 +877,7 @@ module private grid =
             )
             div [ Class "row" ] [
                 div [ Class "col-12 text-right" ] [
-                    p [ Class "text-secondary" ] [ str <| sprintf "Showing %i of %i records" (filteredRows |> List.length) (data.Rows |> List.length) ]
+                    p [ Class "text-secondary" ] [ str <| sprintf "Showing %i of %i records, %i selected" (filteredRows |> List.length) (data.Rows |> List.length) (model.State.SelectedRows |> List.length) ]
                 ]
             ]
             (if model.Layout.ShowSearchBar = SearchBarOptions.PageFooter then
@@ -885,7 +976,7 @@ module private grid =
                                 yield this.showDataRow model drow detailColumns isactive isselected false dispatch 
                     ]
                     table [ Class <| model.Layout.StyleSet.Table ] [
-                        this.showTableHeaders model detail detailColumns dispatch
+                        this.showTableHeaders false model detail detailColumns dispatch
                         tbody [] allRows
                     ]
             | _, Some h, _ -> view model h dispatch

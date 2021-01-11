@@ -40,8 +40,9 @@ type GridDemoSettings = {
     ShowCheckBox: bool
     ShowColumns: string
     StylePresets: int
+    Grouping: bool
 }
-    with static member empty= { MultiSelect= false ; ShowCheckBox= false; ShowColumns= "" ; StylePresets= 1 }
+    with static member empty= { MultiSelect= false ; ShowCheckBox= false; ShowColumns= "" ; StylePresets= 1 ; Grouping= false }
 
 
 type Model = {
@@ -130,6 +131,7 @@ let gridSettingsForm (setts:GridDemoSettings) (cols:string list) = {
         FieldHolder.create "ShowCheckBox" (Bool setts.ShowCheckBox)
         FieldHolder.create "ShowColumns" (BitString (new String('1',cols.Length) , cols) ) 
         FieldHolder.create "StylePresets" (SelectOption (StringKey "1",gridStylePresets)) //(SelectString ("1",gridStylePresets) )
+        FieldHolder.create "Grouping" (Bool setts.Grouping)       
     ]
     ValidationMessages= ValidationMessages.none
     Validations= []
@@ -218,6 +220,14 @@ let update (msg:Msg) (model:Model) =
                         GridSettingsForm= mdlGrid
                         DataGrid= { model.DataGrid with Layout = layout } 
                                         |> Components.DataGrid.setHiddenCols (hiddenCols (setts.ShowColumns,model.GridData.Headers) )
+                                        |> (fun m ->
+                                                (if setts.Grouping then
+                                                    m |> Components.DataGrid.setGroupCols [ "FirstName" ; "LastName" ; "Age" ]
+                                                else m |> Components.DataGrid.setGroupCols [] )
+                                                
+                                                |> Components.DataGrid.setGroupByColumn ""
+                                        )
+
             }, Cmd.none
     | ReportAction rmsg ->
         let mdl,_ = Components.Report.update rmsg model.ReportModel model.GridData
