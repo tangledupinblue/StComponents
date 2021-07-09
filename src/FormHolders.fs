@@ -11,6 +11,7 @@ open Thoth.Json
 //open Components.FormControls
 
 
+
 let idOf (name:string) = name.Replace(" ","_")
 
 let addStyle extend onto = 
@@ -90,7 +91,9 @@ type SelectOptionString = {
     Key: string
     Value: string
 }
-    with static member listFromStrings strings= strings |> List.map (fun s -> { Key= s ; Value= s })
+    with 
+        static member listFromStrings strings= strings |> List.map (fun s -> { Key= s ; Value= s })
+        static member Create key value = { Key=  key ; Value= value }
 
 type IntTimeSpan = {
     Days: int
@@ -414,6 +417,11 @@ type FormHolder = {
                 | Some f -> FieldHolder.valueAsBool f
                 | None -> failwith <| sprintf "No value for %s was found" controlId 
 
+
+module Defaults=
+    let emptyOption = { Key= "0" ; Value = "Select One ..." } 
+
+
 let jsonEncodeValue (valueHolder:ValueHolder) =
     let rec getJson holder= 
         match holder with
@@ -452,11 +460,11 @@ let jsonEncodeForm (instance:FormHolder) =
 
 let inline formToType<'a> (fh:FormHolder) =
     fh
-    |> (fun fh -> printfn "Converting to Form: %A" fh ; fh )    
+    //|> (fun fh -> printfn "Converting to Form: %A" fh ; fh )    
     |> jsonEncodeForm 
-    |> (fun v -> printfn "Json: %A" v ; v) 
+    //|> (fun v -> printfn "Json: %A" v ; v) 
     |> Thoth.Json.Encode.toString 4 
-    |> (fun str -> printfn "Json: %s" str ; str) 
+    //|> (fun str -> printfn "Json: %s" str ; str) 
     |> (fun str -> Thoth.Json.Decode.Auto.fromString<'a>(str,CaseStrategy.PascalCase) )
 
 let getFieldFromList (fields: FieldHolder list) (id:string) =
@@ -465,6 +473,12 @@ let getFieldFromList (fields: FieldHolder list) (id:string) =
 let getField (instance:FormHolder) (id:string) = 
     // instance.Fields |> List.filter (fun x -> x.ControlId = id) |> List.tryHead |> Option.defaultValue FieldHolder.empty
     getFieldFromList instance.Fields id
+
+let getMap (instance:FormHolder)=
+    instance.Fields
+        |> List.map (fun f -> f.FieldId, f |> FieldHolder.valueAsString)
+        |> Map.ofList
+
 
 module TimeHandling =
     let posOr i def arr = arr |> Array.tryItem i |> Option.defaultValue def
@@ -557,9 +571,9 @@ module Update =
     let updateFloatField (f:FieldHolder) (newText:string) (lastVal:FloatValue) =
         // { ControlId= f.ControlId; FieldId = f.FieldId; FieldName= f.FieldName; Value= Text newText }
         let noLeadingZeros (str:string) = if str.Length > 1 && str.StartsWith("0") then str.Substring(1) else str
-        // printfn "%s %A" newText lastVal
+        printfn "%s %A" newText lastVal
         if newText = "" then
-            { f with Value= Float { Display= newText ; Value= 0. } }
+           { f with Value= Float { Display= newText ; Value= 0. } }
         else
             match Double.TryParse(newText) with   
                 | (true, d) ->
@@ -627,6 +641,11 @@ let validateRequired (fh:FieldHolder) =
     match fh.Behaviour with
         | Default | ReadOnly | Optional -> true
         | Required -> 
+            //TODO - if required don't allow "Select One..."
+            // match fh.Value with
+            //     | SelectOption (sel,itms) ->
+            //         match sel with
+            //             | StringKey  
             if (fieldValueStr fh).Length > 0 then true
             else false
 
@@ -703,13 +722,31 @@ module Input =
         ]
 
     let fieldTextInput (fh:FieldHolder) (styles:string) (validation:ValidationMessages) (trigger:FieldHolder -> unit) = 
+        //printfn "%A" fh
         div [ Class ("form-group" |> addStyle styles) ] [
             label [] [ str fh.DisplayName ]
             // textarea [] []
-            textarea [ Id (idOf fh.FieldId); Class "form-control form-control-sm"; 
-                    DefaultValue ( fh |> fieldValueStr ); 
-                    Rows 10;
-                    OnChange (fun e -> Text (string e.Value) |> updateFieldValue fh |> trigger  ) ] [] //fh |> fieldValueStr |> str ]
+            p [] [ str (fh |> fieldValueStr) ]
+            // textarea [ 
+            //         Id (idOf fh.FieldId)
+            //         Class "form-control form-control-sm" 
+            //         //Key (idOf fh.FieldId)
+            //         DefaultValue ( fh |> fieldValueStr ); 
+            //         //Value (fh |> fieldValueStr )
+            //         Rows 10;
+            //         //OnLoad (fun e -> (Text (fh |> fieldValueStr) |> updateFieldValue fh |> trigger ) )
+            //         OnChange (fun e -> Text (string e.Value) |> updateFieldValue fh |> trigger  ) ] [] //fh |> fieldValueStr |> str ]
+            div [   Id (idOf fh.FieldId)
+                    Class "border"
+                    ContentEditable true
+                    //OnChange (fun e -> Text (string e.Value) |> updateFieldValue fh |> trigger  )  //fh |> fieldValueStr |> str ]
+                    OnInput (
+                        fun e -> 
+                            printfn "%A" e
+                            let txt= Browser.Dom.document.getElementById(idOf fh.FieldId).innerText
+                            (Text txt |> updateFieldValue fh |> trigger  )
+                    )
+            ] [ str (fh |> fieldValueStr) ]
             (if validateRequired fh |> not then
                 small [ Class "text-muted" ] [ str validation.Required ] // (sprintf "%s is required" fh.FieldName ) ]
             else
@@ -862,7 +899,7 @@ module Input =
         // let displayName index = snd selections |> List.tryItem index |> Option.defaultValue ""
         let controlid fh index = sprintf "%s%i" fh.ControlId index 
         let checkEvent key = ( fun _ -> //let filtered = selected |> List.filter (fun x -> x <> key)
-                                        printfn "selected: %s" key
+                                        //printfn "selected: %s" key
                                         // (if selected.Length = filtered.Length then // add to selection
                                         //     if key.EndsWith("*") then [ key ]   //only one selection allowed if starred
                                         //     else selected |> List.append [ key ]
@@ -884,11 +921,13 @@ module Input =
                 str opt.Value
             ]
         div [ Class <| addStyle styles "form-group" ] [
-            label [] [ str fh.DisplayName ]
-            div [] (                
-                // (snd bitString) |> List.mapi (fun i x -> li [ Class "list-group-item" ] [ switch i x ] )
-                alloptions |> List.mapi switch                
-            )
+        // div [ Class <| addStyle styles "" ] [
+            p [] [ str fh.DisplayName ]
+            div [ Class "row" ] (                
+                        // (snd bitString) |> List.mapi (fun i x -> li [ Class "list-group-item" ] [ switch i x ] )
+                alloptions |> List.mapi switch
+            )            
+            small [ Class "text-secondary mt-0" ] [ str "Select all that apply" ]
         ]
 
     let dateStringInput (fh:FieldHolder) (styles:string) (validation:ValidationMessages) (trigger:FieldHolder -> unit) =
@@ -1093,9 +1132,8 @@ module Input =
         //printfn "%A" options
         let alloptions = snd options
         let selected = fst options
-        let emptyOption = { Key= "0" ; Value = "Select One ..." } 
         let withMatches =   alloptions
-                                |> List.append (if alloptions |> List.exists (fun o -> o.Key = "0") then [] else [ emptyOption ] )
+                                |> List.append (if alloptions |> List.exists (fun o -> o.Key = "0") then [] else [ Defaults.emptyOption ] )
                                 |> List.mapi (fun i x -> i, x.Key = SelectKey.asString selected, x)                                   
         // let selectedKey optstr = snd options 
         //                             |> List.tryFind (fun x -> x.Value = optstr) 

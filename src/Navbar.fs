@@ -94,7 +94,11 @@ let showNavbarItem (trigger: Msg -> unit) (itm:NavbarItem) =
     let classTag = if itm.Active then " active" else if itm.Disabled then " disabled" else ""
     li [ Class "nav-item" ] [ 
         // a [ Class ( "nav-link" + classTag ); Href itm.Link; OnClick (fun e -> (NavbarClicked itm) |> trigger ) ] [ str itm.Text ]
-        a [ Class ( "nav-link " + classTag ); Href "#"; OnClick (fun e -> (NavbarClicked itm) |> trigger ) ] [ str itm.Text ]
+        a [ Class ( "nav-link " + classTag )
+            Style [ Color "white" ]
+            Href "#"
+            OnClick (fun e -> (NavbarClicked itm) |> trigger ) 
+        ] [  str itm.Text ]
     ]        
 
 // let showNavbarItemWithAction (itm:NavbarItemWithAction) =

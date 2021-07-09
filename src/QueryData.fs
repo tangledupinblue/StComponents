@@ -137,7 +137,8 @@ let cellFromFieldType fieldType (value:string) =
         | Stringy -> cellFromString value
         | Datey -> cellFromString value
         | Duration -> cellFromFloat (Double.Parse(value))
-   
+
+
 let cellText (cell: Cell) =
     match (cell.MaybeFloat, cell.MaybeString) with
         | (_, Some s) -> s
@@ -183,8 +184,32 @@ let getCell (headers:string list) (r:Row) (fieldName:string) =
             |> snd
     with e -> "No Field found for " + fieldName |> failwith
 
+
+let tryGetCell qd fieldName r=
+    r.Cells 
+        |> List.map2 (fun x y -> (x,y)) qd.Headers 
+        |> List.tryFind (fun (x,_) -> x = fieldName)    
+
 let getRowsFromKeys (keys:string list) (qd:QueryData) =
     qd.Rows |> List.filter (fun r -> keys |> List.exists (fun k -> k = r.Key) )
+
+
+let setCellValues keys fieldName value qd =
+    let replace i v lst = (lst |> List.take i) @ [ v ] @ (lst |> List.skip (i+1) )
+    //QUESTION - not sure if mapping will increase performance or not
+    let mapped= keys |> List.map (fun k -> k,k) |> Map.ofList
+    match qd.Headers |> List.tryFindIndex (fun h -> h = fieldName) with
+        | Some colIndex ->
+            qd.Rows 
+                |> List.map (
+                    fun r -> 
+                        mapped 
+                            |> Map.tryFind r.Key
+                            |> Option.map (fun _ -> { r with Cells= r.Cells |> replace colIndex (cellFromFieldType qd.FieldTypes.[colIndex] value) })
+                            |> Option.defaultValue r
+                )
+                |> (fun rows -> { qd with Rows= rows } )
+        | None -> qd
 
 // let cellEqualsString headers r fieldName compare =
 //     getCell headers r fieldName 
@@ -365,6 +390,15 @@ let toCsvRows delim (qd:QueryData) =
         ]
         |> List.append [ buildRow qd.Headers ] 
 
+let queryDataFromSelected selected qd=
+    let selectedRows= 
+        let mappedRows= Map.ofList (qd.Rows |> List.map (fun r -> r.Key, r) )
+        [ for k in selected do
+            match mappedRows |> Map.tryFind k with
+                | Some r -> yield r
+                | None -> ()
+        ]
+    { qd with Rows= selectedRows }
 
 let queryDataFromJson (qdj:QueryDataForJson) : QueryData =
     let fieldTypes = qdj.FieldTypes |> List.map FieldType.fromString

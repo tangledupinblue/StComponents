@@ -109,14 +109,16 @@ type OptionValue = {
 
 let buttonOptions selectedKey (keyvals:OptionValue list) styles (trigger:OptionValue -> unit) =
     let isSelected opt = opt.Key = selectedKey
-    div [ Class "form-inline" ] (
-        keyvals 
-            |> List.map ( fun x -> 
-                                    button [ 
-                                        Class <| "btn " + (if isSelected x then "btn-primary" else "btn-default") + " mb-1 mr-1 " + styles
-                                        OnClick (fun _ -> trigger x)
-                                    ] [ str x.Value ] )
-    )
+    div [ Class "container-fluid" ] [
+        div [ Class "form-inline" ] (
+            keyvals 
+                |> List.map ( fun x -> 
+                                        button [ 
+                                            Class <| "btn " + (if isSelected x then "btn-primary" else "btn-default") + " mb-1 mr-1 " + styles
+                                            OnClick (fun _ -> trigger x)
+                                        ] [ str x.Value ] )
+        )
+    ]
 
 let styledNumberInput name value styles (trigger:double -> unit) = 
     div [ Class <| addStyle styles "form-group" ] [

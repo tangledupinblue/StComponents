@@ -127,19 +127,36 @@ type GridLayout = {
     GroupOnColumns: string list
     StyleSet: GridStyleSet
     BottomSpacing: Pixels
+    ShowRowCount: bool
 }
-    with static member defaultSettings = {
-            HideColumns= []
-            ShowOnlyColumns= []
-            Multiselect= false
-            ShowSearchBar= SearchBarOptions.TableHeader
-            SingleRowButtons= []
-            MultiRowButtons= []
-            SelectedCheckBox= false
-            GroupOnColumns= []
-            StyleSet= GridStyleSet.Light
-            BottomSpacing= 60
-        }
+    with 
+        static member defaultSettings = {
+                HideColumns= []
+                ShowOnlyColumns= []
+                Multiselect= false
+                ShowSearchBar= SearchBarOptions.TableHeader
+                SingleRowButtons= []
+                MultiRowButtons= []
+                SelectedCheckBox= false
+                GroupOnColumns= []
+                StyleSet= GridStyleSet.Light
+                BottomSpacing= 60
+                ShowRowCount= true
+            }
+        static member defaultMultiSelect = {
+                HideColumns= []
+                ShowOnlyColumns= []
+                Multiselect= true
+                ShowSearchBar= SearchBarOptions.TableHeader
+                SingleRowButtons= []
+                MultiRowButtons= []
+                SelectedCheckBox= true
+                GroupOnColumns= []
+                StyleSet= GridStyleSet.Light
+                BottomSpacing= 60
+                ShowRowCount= true
+            }
+
 
 type GridState = {
     Filter: GridFilter
@@ -173,21 +190,40 @@ type Model = {
     //RefreshOptions: Rendering list
     // QueryData: QueryData
 }
-    with static member defaultSettings = { 
-            State= { 
-                Filter= OnAll "" 
-                Freeze= false
-                SelectedRows= []
-                ActiveRow = None
-                SortColumn = { ColumnName= ""; SortOrder= NoSort } 
-                GroupColumn = { ColumnName= ""; SortOrder= NoSort }
-                LastScrollPos= 0.
-            } 
-            Layout = GridLayout.defaultSettings
-            Behaviour= Behaviour.defaultSettings
-            //RefreshOptions= []
-            // QueryData= QueryData.empty
-        }
+    with 
+        static member defaultSettings = { 
+                    State= { 
+                        Filter= OnAll "" 
+                        Freeze= false
+                        SelectedRows= []
+                        ActiveRow = None
+                        SortColumn = { ColumnName= ""; SortOrder= NoSort } 
+                        GroupColumn = { ColumnName= ""; SortOrder= NoSort }
+                        LastScrollPos= 0.
+                    } 
+                    Layout = GridLayout.defaultSettings
+                    Behaviour= Behaviour.defaultSettings
+                    //RefreshOptions= []
+                    // QueryData= QueryData.empty
+                }
+        static member defaultMultiSelect = 
+                { Model.defaultSettings with    Layout= GridLayout.defaultMultiSelect }
+
+                // { 
+                //     State= { 
+                //         Filter= OnAll "" 
+                //         Freeze= false
+                //         SelectedRows= []
+                //         ActiveRow = None
+                //         SortColumn = { ColumnName= ""; SortOrder= NoSort } 
+                //         GroupColumn = { ColumnName= ""; SortOrder= NoSort }
+                //         LastScrollPos= 0.
+                //     } 
+                //     Layout = GridLayout.defaultSettings
+                //     Behaviour= Behaviour.defaultSettings
+                //     //RefreshOptions= []
+                //     // QueryData= QueryData.empty
+                // }
 
 
 module private config =
@@ -534,7 +570,7 @@ module private this =
                                 model.Layout.MultiRowButtons 
                                     |>  List.map (fun b ->      
                                                         button [                                                                        
-                                                            Class <| "btn btn-sm " + b.Class
+                                                            Class <| "btn btn-sm mr-1 " + b.Class
                                                             OnClick (fun _ ->   let scrollPos = Browser.Dom.document.documentElement.scrollTop
                                                                                 (b.Id, keys,scrollPos) |> MultiButtonClickArgs.create |> GridMultiButtonClicked  |> dispatch )
                                                         ] [ str b.Text ]  )          
@@ -649,11 +685,10 @@ let setSortOrder sortableColumn (settings:Model) =
     { settings with 
         State = { settings.State with SortColumn = sortableColumn } }
 
-
     // static member setMultiSelect (multiSelect:bool) (settings:Model) =
 let setMultiSelect (multiSelect:bool) (grid:Model) =
     { grid with 
-        Layout = { grid.Layout with Multiselect = true } }
+        Layout = { grid.Layout with Multiselect = multiSelect } }
 
     // static member setGroupByColumn (colName:string) (settings:Model) = 
 let setGroupByColumn (colName:string) (grid:Model) = 
@@ -700,6 +735,10 @@ let setSearchBarOptions searchBarOptions (settings:Model) =
     { settings with 
         Layout= { settings.Layout with ShowSearchBar= searchBarOptions } }
 
+let setShowRowCount (show:bool) (settings:Model) =
+    { settings with
+        Layout= { settings.Layout with ShowRowCount= show } }
+
     // static member setData (qd:QueryData) (settings:Model) =
     //     { settings with QueryData= qd }
 
@@ -729,6 +768,8 @@ module private grid =
             else filtered             
         let addSelected key =
             if gridState.Layout.Multiselect then appendOrRemove gridState.State.SelectedRows key
+            else if gridState.State.SelectedRows |> List.tryFind (fun s -> s = key) |> Option.isSome then
+                []
             else [ key ]            
         let noRefresh gs = { gs with Behaviour= { gs.Behaviour with RefreshOptions = [] } }
         match msg with
@@ -737,7 +778,7 @@ module private grid =
                 { gridState with State = { gridState.State with Filter = str } }
             | RowClicked rca ->  
                 // Console.WriteLine("Clicked: (" + rca.RecordKey + "," + rca.Height.ToString() + ")")
-                let selected = addSelected rca.Row.Key
+                let selected = addSelected rca.Row.Key                
                 { gridState with State = { 
                                 gridState.State with 
                                     ActiveRow = if selected |> List.length = 1 then selected |> List.tryHead else None //None
@@ -875,11 +916,13 @@ module private grid =
                             ]
                         ]
             )
-            div [ Class "row" ] [
-                div [ Class "col-12 text-right" ] [
-                    p [ Class "text-secondary" ] [ str <| sprintf "Showing %i of %i records, %i selected" (filteredRows |> List.length) (data.Rows |> List.length) (model.State.SelectedRows |> List.length) ]
+            (if model.Layout.ShowRowCount then
+                div [ Class "row" ] [
+                    div [ Class "col-12 text-right" ] [
+                        p [ Class "text-secondary" ] [ str <| sprintf "Showing %i of %i records, %i selected" (filteredRows |> List.length) (data.Rows |> List.length) (model.State.SelectedRows |> List.length) ]
+                    ]
                 ]
-            ]
+            else div [] [] )
             (if model.Layout.ShowSearchBar = SearchBarOptions.PageFooter then
                 this.showSearchBarFooter model dispatch
             else div [] [] )
